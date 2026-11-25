@@ -72,8 +72,8 @@ def _show_dialog(window, focus):
     return window
 
 
-def show_preferences(parent, prefs: Preferences, apply):
-    strings = TEXT.get(prefs.language, TEXT["pl"])
+def show_preferences(parent, prefs: Preferences, apply, *, language: str | None = None):
+    strings = TEXT.get(prefs.language if language is None else language, TEXT["pl"])
     window, frame = _dialog(parent, strings["settings"])
 
     def choice(row, label, titles, keys, current):
@@ -84,7 +84,7 @@ def show_preferences(parent, prefs: Preferences, apply):
         box.current(keys.index(current) if current in keys else 0)
         return box
 
-    language = choice(0, strings["language"], ("Polski", "English"), LANGUAGES, prefs.language)
+    language_box = choice(0, strings["language"], ("Polski", "English"), LANGUAGES, prefs.language)
     theme = choice(1, strings["theme"], strings["themes"], THEMES, prefs.theme)
     conflict = choice(2, strings["conflict"], strings["conflicts"], CONFLICTS, prefs.default_conflict)
     remember = tk.BooleanVar(window, value=prefs.remember_folders)
@@ -94,7 +94,7 @@ def show_preferences(parent, prefs: Preferences, apply):
         row=4, column=0, columnspan=2, sticky="w", padx=(20, 0))
 
     def save():
-        updated = replace(prefs, language=LANGUAGES[language.current()], theme=THEMES[theme.current()],
+        updated = replace(prefs, language=LANGUAGES[language_box.current()], theme=THEMES[theme.current()],
                           remember_folders=remember.get(), default_conflict=CONFLICTS[conflict.current()])
         if apply(updated) is not False and window.winfo_exists():
             window.destroy()
@@ -103,7 +103,7 @@ def show_preferences(parent, prefs: Preferences, apply):
     actions.grid(row=5, column=0, columnspan=2, sticky="e", pady=(18, 0))
     ttk.Button(actions, text=strings["cancel"], command=window.destroy).pack(side="left", padx=(0, 6))
     ttk.Button(actions, text=strings["save"], style="Accent.TButton", command=save).pack(side="left")
-    return _show_dialog(window, language)
+    return _show_dialog(window, language_box)
 
 
 def _diagnostics() -> str:

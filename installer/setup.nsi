@@ -8,7 +8,8 @@ AllowSkipFiles off
 !include "WinVer.nsh"
 !include "${PAYLOAD_MANIFEST}"
 
-!define APP_SHORTCUT "Organizator plików"
+!define APP_SHORTCUT "${APP_NAME} - Organizator plików"
+!define LEGACY_SHORTCUT "Organizator plików"
 !define APP_EXE "FileOrganizer.exe"
 !define APP_INSTALL_DIR "$LOCALAPPDATA\Programs\FileOrganizer"
 !define UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\FileOrganizer"
@@ -51,6 +52,7 @@ Function .onInit
         Quit
     ${EndIf}
     !ifndef SMOKE_TEST
+        SetShellVarContext current
         StrCpy $INSTDIR "${APP_INSTALL_DIR}"
         SetRegView 64
     !endif
@@ -63,6 +65,8 @@ Section "Organizator plików"
     WriteUninstaller "$INSTDIR\Uninstall.exe"
     !ifndef SMOKE_TEST
         CreateShortcut "$SMPROGRAMS\${APP_SHORTCUT}.lnk" "$INSTDIR\${APP_EXE}"
+        IfErrors +2
+        Delete "$SMPROGRAMS\${LEGACY_SHORTCUT}.lnk"
         WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayName" "${APP_NAME}"
         WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayVersion" "${APP_VERSION}"
         WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayIcon" "$INSTDIR\${APP_EXE}"
@@ -82,6 +86,7 @@ SectionEnd
 
 Function un.onInit
     !ifndef SMOKE_TEST
+        SetShellVarContext current
         ${If} $INSTDIR != "${APP_INSTALL_DIR}"
             MessageBox MB_OK|MB_ICONSTOP "Nie można odnaleźć folderu instalacji." /SD IDOK
             SetErrorLevel 2
@@ -103,6 +108,7 @@ Section "Uninstall"
     !insertmacro RemovePayloadDirectories
     !ifndef SMOKE_TEST
         Delete "$SMPROGRAMS\${APP_SHORTCUT}.lnk"
+        Delete "$SMPROGRAMS\${LEGACY_SHORTCUT}.lnk"
         DeleteRegKey HKCU "${UNINSTALL_KEY}"
     !endif
     Delete "$INSTDIR\Uninstall.exe"

@@ -30,7 +30,10 @@ class MainPreferencesTests(unittest.TestCase):
         return OrganizerWindow(root, history_path=self.history, **options)
 
     def button(self, app, label):
-        search = [app.root]
+        return self.find_button(app.root, label)
+
+    def find_button(self, parent, label):
+        search = [parent]
         while search:
             widget = search.pop()
             if isinstance(widget, ttk.Button) and widget.cget("text") == label:
@@ -76,22 +79,43 @@ class MainPreferencesTests(unittest.TestCase):
         self.assertEqual([item.source.name for item in restored.plan], ["old.txt"])
 
     def test_saving_english_dark_preferences_restores_optional_paths(self):
-        self.button(self.app, "Ustawienia")
-        from dataclasses import replace
-
-        app = self.window(use_preferences_path=True)
+        app = self.app
         source = self.folder / "source"
         source.mkdir()
         app.source.set(str(source))
-        self.assertTrue(app._apply_preferences(replace(app.preferences, language="en", theme="dark",
-                                                       remember_folders=True, default_conflict="skip")))
 
+        with patch.object(app.root, "report_callback_exception") as callback_error:
+            self.button(app, "Ustawienia").invoke()
+            callback_error.assert_not_called()
+        dialog, = (widget for widget in app.root.winfo_children() if isinstance(widget, tk.Toplevel))
+        self.assertEqual(dialog.title(), "Ustawienia")
+        controls = dialog.winfo_children()[0].winfo_children()
+        language, theme, conflict = (widget for widget in controls if isinstance(widget, ttk.Combobox))
+        language.set("English")
+        theme.set("Ciemny")
+        conflict.set("Pomiń plik")
+        next(widget for widget in controls if isinstance(widget, ttk.Checkbutton)).invoke()
+        self.find_button(dialog, "Zapisz").invoke()
+        self.assertFalse(dialog.winfo_exists())
+        self.assertIn("po ponownym uruchomieniu", app.status.get())
+        self.assertEqual(app.conflict.get(), "Pomiń plik")
+
+        self.button(app, "Ustawienia").invoke()
+        dialog, = (widget for widget in app.root.winfo_children() if isinstance(widget, tk.Toplevel))
+        self.assertEqual(dialog.title(), "Ustawienia")
+        language = next(widget for widget in dialog.winfo_children()[0].winfo_children()
+                        if isinstance(widget, ttk.Combobox))
+        self.assertEqual(language.get(), "English")
+        self.find_button(dialog, "Anuluj").invoke()
         restored = self.window(use_preferences_path=True)
         self.assertEqual(restored.preview_button.cget("text"), "Show preview")
         self.assertEqual(restored.source.get(), str(source))
         self.assertEqual(restored.conflict.get(), "Skip file")
         red, green, blue = restored.root.winfo_rgb(ttk.Style(restored.root).lookup("Panel.TFrame", "background"))
         self.assertLess(max(red, green, blue), 32768)
+        self.button(restored, "Settings").invoke()
+        dialog, = (widget for widget in restored.root.winfo_children() if isinstance(widget, tk.Toplevel))
+        self.assertEqual(dialog.title(), "Settings")
 
 
 if __name__ == "__main__":
